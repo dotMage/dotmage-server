@@ -3,6 +3,18 @@ set -e
 
 WEB_DIR="web"
 
+# Detect docker compose command (v2 plugin or v1 standalone)
+if docker compose version >/dev/null 2>&1; then
+    DC="docker compose"
+elif docker-compose version >/dev/null 2>&1; then
+    DC="docker-compose"
+else
+    echo "Error: docker compose not found. Install Docker with Compose plugin." >&2
+    exit 1
+fi
+
+echo "Using: $DC"
+
 # 1. Clone or update web admin
 if [ -d "$WEB_DIR/.git" ]; then
     echo "Updating dotmage-web..."
@@ -23,12 +35,12 @@ docker run --rm \
 
 # 3. Build server image and start
 echo "Building server..."
-docker-compose build
-docker-compose up -d
+$DC build
+$DC up -d
 
 echo ""
 echo "dotMage is running at http://localhost:8000"
 echo ""
 echo "Bootstrap secret:"
 sleep 2
-docker-compose logs server 2>&1 | grep -i "bootstrap secret" || echo "(wait a few seconds, then run: docker-compose logs server | grep 'bootstrap secret')"
+$DC logs server 2>&1 | grep -i "bootstrap secret" || echo "(wait a few seconds, then run: $DC logs server | grep 'bootstrap secret')"
