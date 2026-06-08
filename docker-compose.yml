@@ -1,0 +1,17 @@
+services:
+  server:
+    build: .
+    restart: unless-stopped
+    environment:
+      DOTMAGE_DB_URL: "sqlite:////data/dotmage.db"
+      DOTMAGE_BOOTSTRAP_SECRET: ""
+      DOTMAGE_REFRESH_TTL: "30d"
+      DOTMAGE_TOKEN_TTL: "24h"
+      DOTMAGE_LOG_LEVEL: "info"
+    volumes:
+      - dotmage-data:/data
+    ports:
+      - "8000:8000"
+
+volumes:
+  dotmage-data:
