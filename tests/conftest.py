@@ -12,10 +12,9 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
-from app.core.ratelimit import reset_rate_limits  # noqa: E402
-from app.db.models import Base  # noqa: E402
-from app.db.session import get_db  # noqa: E402
-from app.main import app  # noqa: E402
+from src.core.db.connection import get_session  # noqa: E402
+from src.core.ratelimit import reset_rate_limits  # noqa: E402
+from src.models.base import Base  # noqa: E402
 
 # Single shared in-memory SQLite with StaticPool so all connections share the same db
 _engine = create_engine(
@@ -26,7 +25,7 @@ _engine = create_engine(
 _Session = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
 
 
-def _override_get_db():
+def _override_get_session():
     db = _Session()
     try:
         yield db
@@ -34,7 +33,10 @@ def _override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = _override_get_db
+# Import app after env vars are set
+from main import app  # noqa: E402
+
+app.dependency_overrides[get_session] = _override_get_session
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +49,7 @@ def _reset_db():
 
 @pytest.fixture()
 def client():
-    with TestClient(app) as c:
+    with TestClient(app, raise_server_exceptions=False) as c:
         yield c
 
 

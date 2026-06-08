@@ -1,0 +1,172 @@
+"""Domain exception hierarchy."""
+
+from __future__ import annotations
+
+
+class DotMageError(Exception):
+    """Base exception for all domain errors."""
+
+    status_code: int = 500
+    message: str = "Internal error"
+
+
+# --- Auth ---
+
+
+class NotAuthenticatedError(DotMageError):
+    status_code = 401
+    message = "Missing or invalid Authorization header"
+
+
+class InvalidTokenError(DotMageError):
+    status_code = 401
+    message = "Invalid token"
+
+
+class DeviceRevokedError(DotMageError):
+    status_code = 401
+    message = "Device has been revoked"
+
+
+class TokenExpiredError(DotMageError):
+    status_code = 401
+    message = "Token has expired"
+
+
+class EnrollmentTokenRequiredError(DotMageError):
+    status_code = 401
+    message = "Enrollment token required"
+
+
+class InvalidEnrollmentTokenError(DotMageError):
+    status_code = 401
+    message = "Invalid enrollment token"
+
+
+class EnrollmentTokenRevokedError(DotMageError):
+    status_code = 401
+    message = "Enrollment token has been revoked"
+
+
+class EnrollmentTokenExpiredError(DotMageError):
+    status_code = 401
+    message = "Enrollment token has expired"
+
+
+class InvalidRefreshTokenError(DotMageError):
+    status_code = 401
+    message = "Invalid refresh token"
+
+
+# --- Account ---
+
+
+class AccountExistsError(DotMageError):
+    status_code = 409
+    message = "Account already initialized"
+
+
+class InvalidBootstrapError(DotMageError):
+    status_code = 403
+    message = "Invalid bootstrap secret"
+
+
+class AccountNotFoundError(DotMageError):
+    status_code = 404
+    message = "Account not initialized"
+
+
+class UnauthorizedError(DotMageError):
+    status_code = 401
+    message = "Valid token required"
+
+
+# --- App ---
+
+
+class AppExistsError(DotMageError):
+    status_code = 409
+
+    def __init__(self, name: str) -> None:
+        self.message = f"App '{name}' already exists"
+
+
+class AppNotFoundError(DotMageError):
+    status_code = 404
+
+    def __init__(self, name: str) -> None:
+        self.message = f"App '{name}' not found"
+
+
+# --- Environment ---
+
+
+class EnvExistsError(DotMageError):
+    status_code = 409
+
+    def __init__(self, name: str) -> None:
+        self.message = f"Environment '{name}' already exists"
+
+
+class EnvNotFoundError(DotMageError):
+    status_code = 404
+
+    def __init__(self, name: str) -> None:
+        self.message = f"Environment '{name}' not found"
+
+
+class SourceEnvNotFoundError(DotMageError):
+    status_code = 404
+
+    def __init__(self, name: str) -> None:
+        self.message = f"Source environment '{name}' not found"
+
+
+# --- Revision ---
+
+
+class RevisionConflictError(DotMageError):
+    status_code = 409
+
+    def __init__(self, server_rev: int, parent_rev: int) -> None:
+        self.message = (
+            f"Remote is ahead (server rev {server_rev}, your parent {parent_rev})"
+        )
+
+
+class BadRevisionError(DotMageError):
+    status_code = 400
+
+    def __init__(self, rev: str) -> None:
+        self.message = f"Invalid revision: {rev}"
+
+
+class RevisionNotFoundError(DotMageError):
+    status_code = 404
+
+    def __init__(self, rev: int | str = 0) -> None:
+        if rev == 0:
+            self.message = "No revisions"
+        else:
+            self.message = f"Revision {rev} not found"
+
+
+class AppOrEnvNotFoundError(DotMageError):
+    status_code = 404
+    message = "App or environment not found"
+
+
+# --- Device ---
+
+
+class DeviceNotFoundError(DotMageError):
+    status_code = 404
+    message = "Device not found"
+
+
+# --- Rate limit ---
+
+
+class RateLimitedError(DotMageError):
+    status_code = 429
+    message = "Too many requests, try again later"

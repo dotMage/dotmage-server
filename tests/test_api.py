@@ -218,7 +218,7 @@ def test_push_conflict(bootstrapped_client):
         json={"blob": "v1:bm9uY2U=:Y2lwaGVy", "parent_rev": 0},
     )
 
-    # Push with stale parent_rev=0 → 409
+    # Push with stale parent_rev=0 -> 409
     resp = client.post(
         "/api/v1/apps/revapp/envs/dev/revisions",
         headers=h,
@@ -359,7 +359,7 @@ def test_db_has_no_plaintext_secrets(bootstrapped_client):
     """Verify the server stores only base64 blobs, not plaintext values."""
     from sqlalchemy import text
 
-    from app.db.session import get_db
+    from src.core.db.connection import get_session
 
     client, token, _ = bootstrapped_client
     h = auth_header(token)
@@ -376,9 +376,9 @@ def test_db_has_no_plaintext_secrets(bootstrapped_client):
         },
     )
 
-    # Check the raw DB — the blob should be stored as-is (it's already encrypted by CLI)
+    # Check the raw DB -- the blob should be stored as-is (it's already encrypted by CLI)
     # The point: we never see the actual secret "DATABASE_URL=..." in DB
-    db = next(client.app.dependency_overrides[get_db]())
+    db = next(client.app.dependency_overrides[get_session]())
     rows = db.execute(text("SELECT blob FROM revisions")).fetchall()
     for row in rows:
         assert "v1:" in row[0], "blob should be in v1:... format"
