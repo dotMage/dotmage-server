@@ -4,21 +4,27 @@ Self-hosted, E2E-encrypted `.env` secret manager. The server stores only encrypt
 
 ## Deploy
 
+Requires only Docker and git. No Node.js, no Python, no Rust on the host.
+
 ```bash
 git clone git@github.com:dotMage/dotmage-server.git
 cd dotmage-server
-./build.sh            # clones web admin, builds it, builds Docker image
-docker compose up -d  # starts on port 8000
+./build.sh
 ```
 
-`build.sh` clones `dotmage-web`, runs `npm ci && npm run build`, then builds the Docker image. The web admin is mounted as a volume from `web/dist/`.
+`build.sh` does everything:
+1. Clones `dotmage-web` via SSH
+2. Builds the web admin **inside a Docker container** (node:22)
+3. Builds the server Docker image
+4. Starts everything via `docker-compose up -d`
+5. Prints the bootstrap secret
 
 ### Get the bootstrap secret
 
 On first start, the server generates a one-time bootstrap code:
 
 ```bash
-docker compose logs server | grep "bootstrap secret"
+docker-compose logs server | grep "bootstrap secret"
 # → [dotMage] Generated bootstrap secret: XXXXXXXXXXXX
 ```
 
@@ -101,7 +107,7 @@ secrets.example.com {
 ## Backup
 
 ```bash
-docker compose exec server sqlite3 /data/dotmage.db ".backup /data/backup-$(date +%F).db"
+docker-compose exec server sqlite3 /data/dotmage.db ".backup /data/backup-$(date +%F).db"
 ```
 
 Losing the database = losing access to all secrets, even with the master password. **Backup is critical.**

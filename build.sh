@@ -13,15 +13,22 @@ else
     git clone --depth 1 git@github.com:dotMage/dotmage-web.git "$WEB_DIR"
 fi
 
-# 2. Build web admin
-echo "Building web admin..."
-(cd "$WEB_DIR" && npm ci && npm run build)
+# 2. Build web admin inside Docker (no Node.js needed on host)
+echo "Building web admin (in Docker)..."
+docker run --rm \
+    -v "$(pwd)/$WEB_DIR":/build \
+    -w /build \
+    node:22-slim \
+    sh -c "npm ci && npm run build"
 
-# 3. Build and start
-echo "Building Docker image..."
-docker compose build
+# 3. Build server image and start
+echo "Building server..."
+docker-compose build
+docker-compose up -d
 
 echo ""
-echo "Ready. Run:  docker compose up -d"
-echo "Admin panel: http://localhost:8000"
-echo "Bootstrap:   docker compose logs server | grep 'bootstrap secret'"
+echo "dotMage is running at http://localhost:8000"
+echo ""
+echo "Bootstrap secret:"
+sleep 2
+docker-compose logs server 2>&1 | grep -i "bootstrap secret" || echo "(wait a few seconds, then run: docker-compose logs server | grep 'bootstrap secret')"
