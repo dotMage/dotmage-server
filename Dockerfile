@@ -5,5 +5,9 @@ COPY pyproject.toml .
 RUN pip install --no-cache-dir .
 COPY app/ app/
 
+# Web admin static files (copy built dist here, or mount as volume)
+RUN mkdir -p /app/static
+ENV DOTMAGE_STATIC_DIR=/app/static
+
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

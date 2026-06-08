@@ -1,8 +1,11 @@
 """dotMage Server — API backend for E2E-encrypted .env secret manager."""
 
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import Depends, FastAPI
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -33,3 +36,9 @@ def health(db: Session = Depends(get_db)) -> dict:
     acct = db.execute(select(Account)).scalar_one_or_none()
     exists = acct is not None
     return {"status": "ok", "version": "0.1.0", "account_exists": exists}
+
+
+# --- Serve web admin static files (if present) ---
+_static_dir = Path(os.environ.get("DOTMAGE_STATIC_DIR", "/app/static"))
+if _static_dir.is_dir():
+    app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="admin")
