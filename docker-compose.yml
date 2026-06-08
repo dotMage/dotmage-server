@@ -5,13 +5,18 @@ services:
     environment:
       DOTMAGE_DB_URL: "sqlite:////data/dotmage.db"
       DOTMAGE_BOOTSTRAP_SECRET: ""
-      DOTMAGE_REFRESH_TTL: "30d"
       DOTMAGE_TOKEN_TTL: "24h"
+      DOTMAGE_REFRESH_TTL: "30d"
       DOTMAGE_LOG_LEVEL: "info"
     volumes:
       - dotmage-data:/data
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   dotmage-data:

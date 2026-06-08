@@ -1,12 +1,14 @@
 FROM python:3.13-slim
 
-WORKDIR /srv
+WORKDIR /app
+
 COPY pyproject.toml .
 RUN pip install --no-cache-dir .
+
 COPY src/ src/
 COPY main.py .
 
-# Web admin static files (copy built dist here, or mount as volume)
+# Static files directory — mount or copy web admin build here
 RUN mkdir -p /app/static
 ENV DOTMAGE_STATIC_DIR=/app/static
 

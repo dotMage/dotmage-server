@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -25,6 +26,14 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="dotMage Server", version="0.1.0", lifespan=lifespan)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # In production, restrict to actual admin origin
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     # Exception handler for domain errors
     @app.exception_handler(DotMageError)
