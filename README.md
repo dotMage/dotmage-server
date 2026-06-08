@@ -1,38 +1,94 @@
 # dotmage-server
 
-API backend for [dotMage](https://github.com/dotMage) — a self-hosted, E2E-encrypted `.env` secret manager.
+Self-hosted, E2E-encrypted `.env` secret manager. The server stores only encrypted blobs — it **never** sees plaintext secrets.
 
-The server is a "dumb" storage of encrypted blobs. It **never** sees plaintext secrets — all encryption happens client-side.
-
-## Quick start
+## Deploy (one command)
 
 ```bash
+git clone https://github.com/dotMage/dotmage-server.git
+cd dotmage-server
 docker compose up -d
 ```
 
-The server prints a bootstrap secret on first start — check the logs:
+That's it. The server builds itself (API + web admin), creates the database, and starts listening on port 8000.
+
+### Get the bootstrap secret
+
+On first start, the server generates a one-time bootstrap code:
 
 ```bash
 docker compose logs server | grep "bootstrap secret"
+# → [dotMage] Generated bootstrap secret: XXXXXXXXXXXX
 ```
 
-Use this secret when running `dmage auth` on your first device.
+### Connect your first device
+
+Download `dmage` from [releases](https://github.com/dotMage/dotmage-cli/releases), then:
+
+```bash
+dmage auth --server http://your-server:8000
+# Enter the bootstrap secret and set your master password
+# Done — push/pull from any directory
+
+dmage init myapp          # push current .env
+dmage pull myapp          # pull on another machine
+dmage exec myapp -- npm start  # run with secrets in memory
+```
+
+### Add a second device
+
+```bash
+# On the first device:
+dmage gen-token --name work-pc --ttl 1h
+
+# On the new device:
+dmage auth --server http://your-server:8000 --enroll dmage_etok_xxx
+```
 
 ## Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DOTMAGE_DB_URL` | `sqlite:////data/dotmage.db` | Database connection string |
-| `DOTMAGE_BOOTSTRAP_SECRET` | _(auto-generated)_ | One-time secret for first device registration |
+| `DOTMAGE_BOOTSTRAP_SECRET` | _(auto-generated)_ | One-time secret for first device |
 | `DOTMAGE_TOKEN_TTL` | `24h` | Device token lifetime |
 | `DOTMAGE_REFRESH_TTL` | `30d` | Refresh token lifetime |
 | `DOTMAGE_RATE_LIMIT` | `10/min` | Rate limit on auth endpoints |
 | `DOTMAGE_LOG_LEVEL` | `info` | Log level |
-| `DOTMAGE_STATIC_DIR` | `/app/static` | Path to web admin static files |
 
-## Deployment with TLS
+## Production (TLS)
 
-dotMage requires HTTPS in production. Use a reverse proxy like Caddy:
+In production, put the server behind a reverse proxy with auto-TLS. Example with Caddy:
+
+```yaml
+# docker-compose.prod.yml
+services:
+  server:
+    build: .
+    restart: unless-stopped
+    environment:
+      DOTMAGE_DB_URL: "sqlite:////data/dotmage.db"
+    volumes:
+      - dotmage-data:/data
+    expose:
+      - "8000"
+
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+    depends_on:
+      - server
+
+volumes:
+  dotmage-data:
+  caddy-data:
+```
 
 ```
 # Caddyfile
@@ -41,43 +97,19 @@ secrets.example.com {
 }
 ```
 
-See the [spec](https://github.com/dotMage/dotmage-spec) for full deployment details (Appendix H).
-
 ## Backup
 
-The SQLite database contains only encrypted blobs, but losing it means losing access to all secrets (even with the master password).
-
 ```bash
-# Backup
 docker compose exec server sqlite3 /data/dotmage.db ".backup /data/backup-$(date +%F).db"
-
-# Restore
-docker compose down
-cp backup.db data/dotmage.db
-docker compose up -d
 ```
 
-## API
+Losing the database = losing access to all secrets, even with the master password. **Backup is critical.**
 
-Full API contract is documented in [dotmage-spec](https://github.com/dotMage/dotmage-spec) (Appendix B).
+## Web Admin
 
-### Endpoints
+The web admin panel is built into the Docker image automatically. Access it at `http://your-server:8000/` and log in with a device token.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Health check |
-| POST | `/api/v1/account/init` | Bootstrap account |
-| GET | `/api/v1/account/keys` | Get wrapped encryption keys |
-| PATCH | `/api/v1/account/keys` | Update keys (password change) |
-| POST | `/api/v1/auth/device` | Register device |
-| POST | `/api/v1/auth/refresh` | Refresh tokens |
-| GET/POST | `/api/v1/apps` | List/create apps |
-| GET/POST/DELETE | `/api/v1/apps/{name}/envs[/{env}]` | Manage environments |
-| GET/POST | `/api/v1/apps/{name}/envs/{env}/revisions[/{rev}]` | Push/pull/history |
-| POST | `/api/v1/apps/{name}/envs/{env}/rollback` | Rollback |
-| GET/DELETE | `/api/v1/devices[/{id}]` | List/revoke devices |
-| POST | `/api/v1/devices/enroll-token` | Generate enrollment token |
-| GET | `/api/v1/audit` | Audit log |
+The admin panel shows **only metadata** (app names, revisions, devices, audit log). It cannot display secret values — the server never has them.
 
 ## Development
 
