@@ -1,2 +1,168 @@
-# SQLAlchemy models — Phase 3
-pass
+"""SQLAlchemy 2.0 declarative models for dotMage."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _new_uuid() -> str:
+    return str(uuid.uuid4())
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Account(Base):
+    __tablename__ = "accounts"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=_new_uuid)
+    salt: Mapped[str] = mapped_column(Text, nullable=False)
+    argon_memory: Mapped[int] = mapped_column(Integer, nullable=False, default=65536)
+    argon_iterations: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    argon_parallelism: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    argon_version: Mapped[int] = mapped_column(Integer, nullable=False, default=19)
+    nonce_ak: Mapped[str] = mapped_column(Text, nullable=False)
+    wrapped_ak: Mapped[str] = mapped_column(Text, nullable=False)
+    salt_rc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    nonce_rc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    wrapped_ak_rc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    bootstrap_secret_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    bootstrap_used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_utcnow
+    )
+
+    apps: Mapped[list[App]] = relationship(back_populates="account")
+    devices: Mapped[list[Device]] = relationship(back_populates="account")
+    audit_logs: Mapped[list[AuditLog]] = relationship(back_populates="account")
+
+
+class App(Base):
+    __tablename__ = "apps"
+    __table_args__ = (UniqueConstraint("account_id", "name"),)
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=_new_uuid)
+    account_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("accounts.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_utcnow, onupdate=_utcnow
+    )
+
+    account: Mapped[Account] = relationship(back_populates="apps")
+    environments: Mapped[list[Environment]] = relationship(
+        back_populates="app", cascade="all, delete-orphan"
+    )
+
+
+class Environment(Base):
+    __tablename__ = "environments"
+    __table_args__ = (UniqueConstraint("app_id", "name"),)
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=_new_uuid)
+    app_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("apps.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    latest_rev: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    protected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_utcnow, onupdate=_utcnow
+    )
+
+    app: Mapped[App] = relationship(back_populates="environments")
+    revisions: Mapped[list[Revision]] = relationship(
+        back_populates="environment", cascade="all, delete-orphan"
+    )
+
+
+class Revision(Base):
+    __tablename__ = "revisions"
+    __table_args__ = (UniqueConstraint("environment_id", "rev_number"),)
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=_new_uuid)
+    environment_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("environments.id"), nullable=False
+    )
+    rev_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    blob: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    parent_rev: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_utcnow
+    )
+    device_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("devices.id"), nullable=False
+    )
+    rollback_of: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    environment: Mapped[Environment] = relationship(back_populates="revisions")
+    device: Mapped[Device] = relationship(back_populates="revisions")
+
+
+class Device(Base):
+    __tablename__ = "devices"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=_new_uuid)
+    account_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("accounts.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    refresh_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    token_expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_utcnow
+    )
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    account: Mapped[Account] = relationship(back_populates="devices")
+    revisions: Mapped[list[Revision]] = relationship(back_populates="device")
+    audit_logs: Mapped[list[AuditLog]] = relationship(back_populates="device")
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=_new_uuid)
+    account_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("accounts.id"), nullable=False
+    )
+    device_id: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("devices.id"), nullable=True
+    )
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    app_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    env_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rev_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_utcnow
+    )
+    meta: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    account: Mapped[Account] = relationship(back_populates="audit_logs")
+    device: Mapped[Device | None] = relationship(back_populates="audit_logs")
