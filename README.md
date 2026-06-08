@@ -2,15 +2,16 @@
 
 Self-hosted, E2E-encrypted `.env` secret manager. The server stores only encrypted blobs — it **never** sees plaintext secrets.
 
-## Deploy (one command)
+## Deploy
 
 ```bash
-git clone https://github.com/dotMage/dotmage-server.git
+git clone git@github.com:dotMage/dotmage-server.git
 cd dotmage-server
-docker compose up -d
+./build.sh            # clones web admin + builds Docker image
+docker compose up -d  # starts on port 8000
 ```
 
-That's it. The server builds itself (API + web admin), creates the database, and starts listening on port 8000.
+`build.sh` pulls the web admin source, then `docker compose build` assembles everything into one image (API + admin panel). After that `docker compose up -d` starts the server.
 
 ### Get the bootstrap secret
 

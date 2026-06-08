@@ -1,8 +1,7 @@
-# Stage 1: Build web admin
+# Stage 1: Build web admin (from local copy)
 FROM node:22-slim AS web-builder
 WORKDIR /web
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
-RUN git clone --depth 1 https://github.com/dotMage/dotmage-web.git .
+COPY web/ .
 RUN npm ci && npm run build
 
 # Stage 2: Server
