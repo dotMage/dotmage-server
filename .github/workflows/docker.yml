@@ -4,8 +4,6 @@ on:
   push:
     branches: [main]
     tags: ['v*']
-  repository_dispatch:
-    types: [web-updated]
 
 permissions:
   contents: read
@@ -16,18 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Clone web admin
-        run: git clone --depth 1 https://github.com/dotMage/dotmage-web.git web
-
-      - name: Build web admin
-        run: |
-          cd web
-          npm ci
-          npm run build
-
-      - name: Copy web build to static
-        run: rm -rf static && cp -r web/dist static
 
       - name: Log in to GHCR
         uses: docker/login-action@v3

@@ -34,9 +34,8 @@ services:
       retries: 3
 
   web:
-    image: ghcr.io/dotmage/dotmage-server:latest
+    image: ghcr.io/dotmage/dotmage-web:latest
     restart: unless-stopped
-    entrypoint: ["python", "-m", "http.server", "80", "--directory", "/app/static"]
     ports:
       - "${PORT_WEB}:80"
 
