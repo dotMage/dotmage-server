@@ -13,8 +13,6 @@ mkdir -p "$DIR"
 cd "$DIR"
 
 cat > docker-compose.yml << EOF
-version: "3.8"
-
 services:
   server:
     image: ghcr.io/dotmage/dotmage-server:latest
@@ -57,38 +55,45 @@ else
 fi
 
 echo "  Pulling images..."
-$DC pull -q
+$DC pull -q 2>/dev/null || $DC pull
 
 echo "  Starting services..."
-$DC up -d --quiet-pull 2>/dev/null || $DC up -d
+$DC up -d 2>/dev/null
 
-IP=$(hostname -I 2>/dev/null | awk '{print $1}' || hostname -f 2>/dev/null || echo "localhost")
+# Detect public IP
+PUBLIC_IP=$(curl -s --max-time 3 ifconfig.me 2>/dev/null \
+         || curl -s --max-time 3 icanhazip.com 2>/dev/null \
+         || hostname -I 2>/dev/null | awk '{print $1}' \
+         || echo "localhost")
 
 echo ""
 echo "  \033[32m✓ dotMage is running!\033[0m"
 echo ""
-echo "  ┌──────────────────────────────────────────┐"
-echo "  │                                          │"
-echo "  │  \033[1mAPI\033[0m          http://${IP}:${PORT_API}   │"
-echo "  │  \033[1mAdmin Panel\033[0m  http://${IP}:${PORT_WEB}   │"
-echo "  │                                          │"
-echo "  └──────────────────────────────────────────┘"
-echo ""
+echo "  ┌────────────────────────────────────────────────────┐"
+echo "  │                                                    │"
+printf "  │  \033[1mAPI\033[0m           http://%-30s│\n" "${PUBLIC_IP}:${PORT_API}"
+printf "  │  \033[1mAdmin Panel\033[0m   http://%-30s│\n" "${PUBLIC_IP}:${PORT_WEB}"
+echo "  │                                                    │"
+echo "  └────────────────────────────────────────────────────┘"
 
 sleep 3
-SECRET=$($DC logs server 2>&1 | grep -oP 'bootstrap secret: \K.*' || $DC logs server 2>&1 | grep -o 'secret: .*' | head -1 | sed 's/secret: //')
+SECRET=$($DC logs server 2>&1 | grep "bootstrap secret" | sed 's/.*secret: //' | tail -1)
 
+echo ""
 if [ -n "$SECRET" ]; then
-    echo "  \033[33mBootstrap secret (save it!):\033[0m"
-    echo "  \033[1m${SECRET}\033[0m"
+    echo "  \033[33m🔑 Bootstrap secret (save it!):\033[0m"
+    echo ""
+    echo "     \033[1m${SECRET}\033[0m"
 else
     echo "  \033[90mBootstrap secret not ready yet. Run:\033[0m"
-    echo "  $DC logs server | grep 'bootstrap secret'"
+    echo "  cd $DIR && $DC logs server | grep 'bootstrap secret'"
 fi
 
 echo ""
-echo "  \033[90mNext steps:\033[0m"
-echo "  1. Download dmage CLI: https://github.com/dotMage/dotmage-cli/releases"
-echo "  2. Run: dmage auth --server http://${IP}:${PORT_API}"
-echo "  3. Enter the bootstrap secret above"
+echo "  \033[90m── Next steps ──────────────────────────────────────\033[0m"
+echo ""
+echo "  1. Download CLI:  \033[4mhttps://github.com/dotMage/dotmage-cli/releases\033[0m"
+echo "  2. Authenticate:  dmage auth --server http://${PUBLIC_IP}:${PORT_API}"
+echo "  3. Push secrets:  cd your-project && dmage init myapp"
+echo "  4. Admin panel:   \033[4mhttp://${PUBLIC_IP}:${PORT_WEB}\033[0m"
 echo ""
