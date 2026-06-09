@@ -2,22 +2,23 @@
 
 Self-hosted, E2E-encrypted `.env` secret manager. The server stores only encrypted blobs — it **never** sees plaintext secrets.
 
-## Deploy
-
-Requires only Docker and git. No Node.js, no Python, no Rust on the host.
+## Deploy (one command)
 
 ```bash
-git clone git@github.com:dotMage/dotmage-server.git
+curl -fsSL https://raw.githubusercontent.com/dotMage/dotmage-server/main/install.sh | bash
+```
+
+That's it. Downloads the Docker image, creates `docker-compose.yml`, starts the server on port 8000, prints the bootstrap secret.
+
+Requires only Docker. No git, no Node.js, no Python, no Rust.
+
+### Alternative: build from source
+
+```bash
+git clone https://github.com/dotMage/dotmage-server.git
 cd dotmage-server
 ./build.sh
 ```
-
-`build.sh` does everything:
-1. Clones `dotmage-web` via SSH
-2. Builds the web admin **inside a Docker container** (node:22)
-3. Builds the server Docker image
-4. Starts everything via `docker-compose up -d`
-5. Prints the bootstrap secret
 
 ### Get the bootstrap secret
 

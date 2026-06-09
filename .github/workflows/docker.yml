@@ -1,0 +1,44 @@
+name: Docker
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone web admin
+        run: git clone --depth 1 https://github.com/dotMage/dotmage-web.git web
+
+      - name: Build web admin
+        run: |
+          cd web
+          npm ci
+          npm run build
+
+      - name: Copy web build to static
+        run: cp -r web/dist static
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/dotmage/dotmage-server:latest
+            ghcr.io/dotmage/dotmage-server:${{ github.sha }}

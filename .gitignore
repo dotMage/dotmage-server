@@ -16,4 +16,5 @@ build/
 *.sqlite3
 .DS_Store
 web/
-static/
+static/*
+!static/.gitkeep
